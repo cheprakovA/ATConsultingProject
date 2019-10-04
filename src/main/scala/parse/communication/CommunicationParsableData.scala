@@ -1,5 +1,6 @@
+package parse.communication
+
 import org.apache.spark.sql.types.{StructField, _}
-import java.time._
 
 object CommunicationParsableData extends Enumeration {
 
