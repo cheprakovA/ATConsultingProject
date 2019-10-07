@@ -1,59 +1,66 @@
 package parse.communication
 
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.FileSystem
-import org.apache.spark.rdd.RDD
-import org.apache.spark.{SparkConf, SparkContext}
+import java.time.LocalDate
 
 object CommunicationDataParser {
 
-  val sparkConf = new SparkConf()
-    .setAppName("example")
-    .setMaster("local[*]")
-    .set("spark.driver.allowMultipleContext", "true")
+  var workZonesIndexes = List.empty[Int]
+  var relaxZonesIndexes = List.empty[Int]
+  var otherZonesIndexes = List.empty[Int]
 
-  val sc = new SparkContext(sparkConf)
+  def communicationDayFileParse(date: String, month: String): Map[Int, Double] = {
 
-  val path = "/Volumes/DATA/NOVEMBER/sms-call-internet-mi-2013-11-01.txt"
+    val config = new Config(date, month)
+    val file = config.textFile
+    var totalSum: Double = 0.0
+    var workSum: Double = 0.0
+    var uniqueVal = CommunicationParsableData(file.first())
+    var result = Map.empty[Int, Double]
 
-  val textFile: RDD[String] = sc.textFile(path)
+    if (isWorkingDay(uniqueVal.dayOfMonth)) {
+      var sum: Double = uniqueVal.callsIn + uniqueVal.callsOut + uniqueVal.smsIn +
+        uniqueVal.smsOut + uniqueVal.internet
 
-  val conf = new Configuration()
-  val fs = FileSystem.get(conf)
+      file
+        .take(10000)
+        .toList
+        .foreach(line => {
+          val row = CommunicationParsableData(line)
+          if (row.sensorID == uniqueVal.sensorID)
+            if (row.timeInterval == uniqueVal.timeInterval)
+              sum += row.callsIn + row.callsOut + row.smsIn + row.smsOut + row.internet
+            else {
+              totalSum += sum
+              if (isWorkingTime(uniqueVal.timeInterval)) {
+                workSum += sum
+              }
+              uniqueVal = row
+              sum = uniqueVal.callsIn + uniqueVal.callsOut + uniqueVal.smsIn +
+                uniqueVal.smsOut + uniqueVal.internet
+            }
+          else {
+            result = result + (uniqueVal.sensorID -> workSum / totalSum)
+            uniqueVal = row
+            sum = uniqueVal.callsIn + uniqueVal.callsOut + uniqueVal.smsIn +
+              uniqueVal.smsOut + uniqueVal.internet
+            totalSum = 0.0
+            workSum = 0.0
+          }
+        })
+    }
+    config.sc.stop()
+    result
+  }
 
-  def parse(): List[(Int, String, Float)] = {
+  def isWorkingDay(date: String): Boolean = {
+    val celebrations = List("11-10", "12-08", "12-25", "12-26", "12-31")
+    val dayOfWeek = LocalDate.of(
+      2013,
+      (date.charAt(0) - '0') * 10 + (date.charAt(1) - '0'),
+      (date.charAt(3) - '0') * 10 + (date.charAt(4) - '0')
+    ).getDayOfWeek.getValue
 
-    var uniqueVal = CommunicationParsableData(textFile.first())
-    var result = List.empty[(Int, Long, Float)]
-
-    var sum: Float = uniqueVal.callsIn + uniqueVal.callsOut + uniqueVal.smsIn +
-      uniqueVal.smsOut + uniqueVal.internet
-
-    textFile.take(1000).toList.tail
-      .foreach(line => {
-        val row = CommunicationParsableData(line)
-        if (row.sensorID == uniqueVal.sensorID &&
-          row.timeInterval == uniqueVal.timeInterval) {
-          sum += row.callsIn + row.callsOut + row.smsIn + row.smsOut + row.internet
-        } else {
-          result = result :+ (
-            uniqueVal.sensorID,
-            uniqueVal.timeInterval,
-            sum
-          )
-          uniqueVal = row
-          sum = uniqueVal.callsIn + uniqueVal.callsOut + uniqueVal.smsIn +
-            uniqueVal.smsOut + uniqueVal.internet
-        }
-      })
-      result.map {
-        case (i, l, fl) => (
-          i,
-          new java.text.SimpleDateFormat("HH:mm").
-            format(new java.util.Date(l - 3600000)),
-          fl
-        )
-      }
+    !(celebrations.contains(date) || (dayOfWeek == 6 || dayOfWeek == 7))
   }
 
   def isWorkingTime(string: String): Boolean = {
@@ -69,20 +76,51 @@ object CommunicationDataParser {
       (string.charAt(0) - '0' == 2 && string.charAt(1) - '0' <= 3)
   }
 
-  def workingTime(): Unit = {
-    parse().filter {
-      case (_, str, _) => isWorkingTime(str)
-    }.foreach(println)
+  def isCarryingTime(string: String): Boolean = {
+    string.charAt(0) - '0' == 0 && string.charAt(1) - '0' < 3
   }
 
-  def restTime(): Unit = {
-    parse().filter {
-      case (_, str, _) => isRestTime(str)
-    }
+  def mapVal(x: Option[(Double, Int)], value: Double): (Double, Int) = x match {
+    case Some(pair) => (pair._1 + value, pair._2 + 1)
+    case None => (0.0, 0)
   }
 
-  def main(args: Array[String]): Unit = {
-    workingTime()
+  def setIndexes(): Unit = {
+
+    var res = Map.empty[Int, (Double, Int)]
+
+    (1 to 31).map {
+      case e if (e < 10) => {
+        communicationDayFileParse(s"11-0$e", "NOVEMBER")
+        communicationDayFileParse(s"12-0$e", "DECEMBER")
+      }
+      case 31 => communicationDayFileParse(s"12-31", "DECEMBER")
+      case e => {
+        communicationDayFileParse(s"11-$e", "NOVEMBER")
+        communicationDayFileParse(s"12-$e", "DECEMBER")
+      }
+    }.filterNot(_.isEmpty)
+      .map(
+        mkv => mkv.map(
+          kv => {
+            res = res.updated(
+              kv._1,
+              mapVal(res.get(kv._1), kv._2)
+            )
+          }
+        )
+      )
+
+    res.foreach(
+      m => {
+        if (m._2._1 / m._2._2.toDouble > 0.5)
+          workZonesIndexes = workZonesIndexes :+ m._1
+        else if (m._2._1 / m._2._2.toDouble < 0.4)
+          relaxZonesIndexes = relaxZonesIndexes :+ m._1
+        else
+          otherZonesIndexes = otherZonesIndexes :+ m._1
+      }
+    )
   }
 
 }

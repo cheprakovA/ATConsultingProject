@@ -1,6 +1,18 @@
 package parse.communication
 
-import org.apache.spark.sql.types.{StructField, _}
+case class CommunicationParsableData(
+                                      sensorID: Int,
+                                      unixTime: Long,
+                                      weekDay: String,
+                                      dayOfMonth: String,
+                                      timeInterval: String,
+                                      countryId: Int,
+                                      smsIn: Double,
+                                      smsOut: Double,
+                                      callsIn: Double,
+                                      callsOut: Double,
+                                      internet: Double
+                                    )
 
 object CommunicationParsableData extends Enumeration {
 
@@ -9,22 +21,9 @@ object CommunicationParsableData extends Enumeration {
   var SENSOR_ID, TIME_INTERVAL, COUNTRY_ID, SMS_IN_ACTIVITY,
   SMS_OUT_ACTIVITY, CALL_IN_ACTIVITY, CALL_OUT_ACTIVITY, INTERNET_ACTIVITY = Value
 
-  val structType = StructType(
-    Seq(
-      StructField(SENSOR_ID.toString, IntegerType),
-      StructField(TIME_INTERVAL.toString, LongType),
-      StructField(COUNTRY_ID.toString, IntegerType),
-      StructField(SMS_IN_ACTIVITY.toString, FloatType),
-      StructField(SMS_OUT_ACTIVITY.toString, FloatType),
-      StructField(CALL_IN_ACTIVITY.toString, FloatType),
-      StructField(CALL_OUT_ACTIVITY.toString, FloatType),
-      StructField(INTERNET_ACTIVITY.toString, FloatType)
-    )
-  )
-
-  private def nonEmpty(str: String): Float = str match {
-    case "" => 0
-    case _ => str.toFloat
+  private def nonEmpty(str: String): Double = str match {
+    case "" => 0.0
+    case _ => str.toDouble
   }
 
   def apply(row: String): CommunicationParsableData = {
@@ -34,6 +33,12 @@ object CommunicationParsableData extends Enumeration {
     CommunicationParsableData(
       arr(SENSOR_ID.id).toInt,
       arr(TIME_INTERVAL.id).toLong,
+      new java.text.SimpleDateFormat("EEEEE")
+        .format(new java.util.Date (arr(TIME_INTERVAL.id).toLong - 3600000)),
+      new java.text.SimpleDateFormat("MM-dd")
+        .format(new java.util.Date (arr(TIME_INTERVAL.id).toLong - 3600000)),
+      new java.text.SimpleDateFormat("HH:mm")
+        .format(new java.util.Date (arr(TIME_INTERVAL.id).toLong - 3600000)),
       arr(COUNTRY_ID.id).toInt,
       nonEmpty(arr(SMS_IN_ACTIVITY.id)),
       nonEmpty(arr(SMS_OUT_ACTIVITY.id)),
@@ -44,14 +49,3 @@ object CommunicationParsableData extends Enumeration {
 
   }
 }
-
-case class CommunicationParsableData(
-                                      sensorID: Int,
-                                      timeInterval: Long,
-                                      countryId: Int,
-                                      smsIn: Float,
-                                      smsOut: Float,
-                                      callsIn: Float,
-                                      callsOut: Float,
-                                      internet: Float
-                                    )

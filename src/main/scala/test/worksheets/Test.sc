@@ -1,6 +1,15 @@
-val string = "23:10"
-val flag =
-  (string.charAt(0) - '0' == 0 && string.charAt(1) - '0' == 9) ||
-    ((string.charAt(0) - '0' == 1 && string.charAt(1) - '0' <= 3) &&
-      (string.charAt(0) - '0' == 1 && string.charAt(1) - '0' >= 5) ||
-      (string.charAt(0) - '0' == 1 && string.charAt(1) - '0' <= 7))
+val n = 8
+val lst = List(
+  List(1.0,11.0), List(2.0,22.0),
+  List(3.0,33.0), List(4.0,44.0))
+
+def take(k: Int, row: (Int, List[List[Any]])): Double = row._2
+  .drop((k - 1) / 2)
+  .head
+  .dropRight(k % 2)
+  .last
+match {
+  case d: Double => d.toDouble
+  case _ => 0.0
+}
+take(n, (1, lst))
