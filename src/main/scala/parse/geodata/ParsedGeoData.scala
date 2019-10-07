@@ -18,15 +18,15 @@ object ParsedGeoData {
 
   val schema =
     StructType(
-      StructField("ID", IntegerType, false) ::
-      StructField("LON1", DoubleType, false) ::
-      StructField("LAT1", DoubleType, false) ::
-      StructField("LON2", DoubleType, false) ::
-      StructField("LAT2", DoubleType, false) ::
-      StructField("LON3", DoubleType, false) ::
-      StructField("LAT3", DoubleType, false) ::
-      StructField("LON4", DoubleType, false) ::
-      StructField("LAT4", DoubleType, false) :: Nil
+      StructField("id", IntegerType, false) ::
+      StructField("lon1", DoubleType, false) ::
+      StructField("lat1", DoubleType, false) ::
+      StructField("lon2", DoubleType, false) ::
+      StructField("lat2", DoubleType, false) ::
+      StructField("lon3", DoubleType, false) ::
+      StructField("lat3", DoubleType, false) ::
+      StructField("lon4", DoubleType, false) ::
+      StructField("lat4", DoubleType, false) :: Nil
   )
 
   def apply(row: (Int, List[List[List[Double]]])): Row = {

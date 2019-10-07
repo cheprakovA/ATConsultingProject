@@ -2,6 +2,8 @@ package parse.communication
 
 import java.time.LocalDate
 
+import app.Constants
+
 object CommunicationDataParser {
 
   var workZonesIndexes = List.empty[Int]
@@ -22,7 +24,7 @@ object CommunicationDataParser {
         uniqueVal.smsOut + uniqueVal.internet
 
       file
-        .take(10000)
+        .collect()
         .toList
         .foreach(line => {
           val row = CommunicationParsableData(line)
@@ -82,7 +84,7 @@ object CommunicationDataParser {
 
   def mapVal(x: Option[(Double, Int)], value: Double): (Double, Int) = x match {
     case Some(pair) => (pair._1 + value, pair._2 + 1)
-    case None => (0.0, 0)
+    case None => (value, 1)
   }
 
   def setIndexes(): Unit = {
@@ -113,9 +115,9 @@ object CommunicationDataParser {
 
     res.foreach(
       m => {
-        if (m._2._1 / m._2._2.toDouble > 0.5)
+        if (m._2._1 / m._2._2.toDouble > Constants.higher)
           workZonesIndexes = workZonesIndexes :+ m._1
-        else if (m._2._1 / m._2._2.toDouble < 0.4)
+        else if (m._2._1 / m._2._2.toDouble < Constants.lower)
           relaxZonesIndexes = relaxZonesIndexes :+ m._1
         else
           otherZonesIndexes = otherZonesIndexes :+ m._1

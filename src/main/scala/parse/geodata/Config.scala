@@ -1,5 +1,6 @@
 package parse.geodata
 
+import app.Constants
 import org.apache.spark.{SparkConf, SparkContext}
 
 class Config {
@@ -11,6 +12,6 @@ class Config {
 
   val sc = new SparkContext(sparkConf)
 
-  val path = "/Volumes/DATA/GRID/milano-grid.geojson"
+  val path = Constants.GRID_PATH
 
 }
